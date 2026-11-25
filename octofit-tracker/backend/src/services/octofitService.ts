@@ -24,9 +24,9 @@ export async function createActivity(input: unknown) {
     !type.trim() ||
     typeof minutes !== 'number' ||
     !Number.isFinite(minutes) ||
-    minutes <= 0
+    minutes < 1
   ) {
-    throw httpError('A valid userId, teamId, type, and positive minutes are required', 400);
+    throw httpError('A valid userId, teamId, type, and at least one minute are required', 400);
   }
 
   const [user, team] = await Promise.all([User.findById(userId), Team.findById(teamId)]);
