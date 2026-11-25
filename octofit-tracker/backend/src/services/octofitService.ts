@@ -31,6 +31,9 @@ export async function createActivity(input: unknown) {
 
   const [user, team] = await Promise.all([User.findById(userId), Team.findById(teamId)]);
   if (!user || !team) throw httpError('The specified user or team does not exist', 404);
+  if (!user.team?.equals(team._id) || !team.members.some((member) => member.equals(user._id))) {
+    throw httpError('The specified user is not a member of that team', 400);
+  }
 
   return Activity.create({
     user: user._id,
@@ -63,11 +66,17 @@ export async function createTeam(input: unknown) {
   const existingMembers = await User.find({ _id: { $in: memberIds } }).select('_id');
   if (existingMembers.length !== memberIds.length) throw httpError('One or more specified members do not exist', 404);
 
-  return Team.create({
+  const team = await Team.create({
     name: name.trim(),
     mascot: mascot.trim(),
     members: existingMembers.map(({ _id }) => _id),
   });
+  if (existingMembers.length > 0) {
+    const ids = existingMembers.map(({ _id }) => _id);
+    await Team.updateMany({ _id: { $ne: team._id }, members: { $in: ids } }, { $pull: { members: { $in: ids } } });
+    await User.updateMany({ _id: { $in: ids } }, { $set: { team: team._id } });
+  }
+  return team;
 }
 
 export async function getLeaderboard() {

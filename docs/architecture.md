@@ -21,8 +21,8 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 
 | Capability | Method and path | Expected behavior |
 | --- | --- | --- |
-| Activity tracking | `GET /api/activities`, `POST /api/activities` | List and create valid activity records. POST accepts `userId`, `teamId`, `type`, and `minutes`; `userId` and `teamId` must be well-formed IDs for an existing user and team; otherwise respond with a deliberate 4xx (never a 500 from a cast error). A created activity stores the submitted `user`, `team`, `type`, and `minutes` plus computed `points` and `occurredAt`. |
-| Teams | `GET /api/teams`, `POST /api/teams` | List and create teams with members. Created and listed teams keep the submitted `name` and `mascot`. Reject a team without a name with `400`. |
+| Activity tracking | `GET /api/activities`, `POST /api/activities` | List and create valid activity records. POST accepts `userId`, `teamId`, `type`, and `minutes`; `userId` and `teamId` must be well-formed IDs for an existing user and team, and the user must belong to that team; otherwise respond with a deliberate 4xx (never a 500 from a cast error). A created activity stores the submitted `user`, `team`, `type`, and `minutes` plus computed `points` and `occurredAt`. |
+| Teams | `GET /api/teams`, `POST /api/teams` | List and create teams with members. Created and listed teams keep the submitted `name` and `mascot`. Creating a team moves supplied members from their previous teams. Reject a team without a name with `400`. |
 | Leaderboard | `GET /api/leaderboard` | Return teams ordered by the sum of their activity points, highest first. Each entry has `teamName`, `totalPoints`, and a 1-based `rank`. |
 | Workout suggestions | `GET /api/workouts/suggestions/:userEmail` | Recommend workouts from recent activity patterns for the matching seeded user's email address. The first suggestion's `focus` matches that user's goal or recent activity, with a `reason` explaining why. An email with no matching user returns a deliberate 4xx (for example, `404`). |
 
@@ -30,9 +30,9 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 
 - Presentation tier decision: Keep route components focused on rendering and use `src/api/client.ts` for typed API requests, with visible loading, empty, and error states.
 - Logic tier decision: Keep HTTP handling in Express routes and request validation and business behavior in `octofitService.ts`; return deliberate 4xx responses for invalid or unknown input.
-- Data tier decision: Express required fields and relationships in Mongoose schemas, and keep demo fixtures stable and idempotent through keyed upserts without deleting unrelated records.
-- Activity tracking approach: Validate activity input and existing user/team ObjectIds, then store the referenced records, submitted activity details, computed points, and occurrence time.
-- Team management approach: Validate team names and member IDs, persist member references, and return teams with their member IDs.
+- Data tier decision: Enforce required fields and relationships in Mongoose schemas, and keep demo fixtures stable and idempotent through keyed upserts without deleting unrelated records.
+- Activity tracking approach: Validate activity input and existing user/team ObjectIds and membership, then store the referenced records, submitted activity details, computed points, and occurrence time.
+- Team management approach: Validate team names and member IDs, remove members from previous teams, update their team references, and return teams with their member IDs. These sequential writes support standalone MongoDB but are not atomic; a failure or concurrent update can leave membership inconsistent.
 - Leaderboard approach: Aggregate activity points by team, sort totals descending, and assign 1-based ranks.
 - Workout suggestions approach: Match a user by email, prefer workouts matching their goal or recent activity, and explain the recommendation; return a 4xx for an unknown email.
 
